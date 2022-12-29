@@ -1,6 +1,6 @@
 # Implementing YOLOv5 for Parallel and Distributed Computing (AWS)
 
-This repo is forked and modified from [Ultralytics's YOLOv5 Pytorch implementation](https://github.com/ultralytics/yolov5). Visit here for the original [README](https://github.com/ultralytics/yolov5#readme) and [Training Custom Data tutorial](https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data).
+This repo is forked and modified from [Ultralytics's YOLOv5 Pytorch implementation](https://github.com/ultralytics/yolov5). Visit here for the original [README](https://github.com/ultralytics/yolov5#readme).
 
 ## Table of Content
 1. [Project structure](#project-structure)
