@@ -149,3 +149,60 @@ The following setup procedure can be found [here](https://ubuntu.com/server/docs
     $ cd /home/ubuntu/yolo
     $ echo testfile.txt
     ```
+
+### You Only Look Once (YOLO) Model Inference Setup
+1. Clone this [repository](https://github.com/yuenherny/um-wqd7008-pdc-yolov5) to Executor because there are several Ubuntu-based packages needed to run YOLO model. Note that Git and Python 3.8 come pre-installed with Ubuntu 20.04 AMI.
+    ```
+    $ git clone https://github.com/yuenherny/um-wqd7008-pdc-yolov5.git
+    ```
+2. Install required Ubuntu packages for **OpenCV** and **venv**.
+    ```
+    $ sudo apt install python3-opencv
+    $ sudo apt install python3.8-venv
+    ```
+3. At the cloned local repository, create and activate Python environment.
+    ```
+    $ cd um-wqd7008-pdc-yolov5
+    $ python3 -m venv venv
+    $ source venv/bin/activate
+    ```
+    Check if environment is activated. You should see a list of pre-installed packages.
+    ```
+    $ pip list
+    ```
+4. Before installing other dependencies using `requirements.txt`, install **torch** and **torchvision** packages from the [official PyTorch docs](https://pytorch.org/get-started/locally/), as downloads via PyPi wheel can be slow on AWS.
+    - At **START LOCALLY** section, choose:
+        - PyTorch Build: Stable
+        - Your OS: Linux
+        - Package: Pip
+        - Language: Python
+        - Compute Platform: CPU
+    - Then copy the command with **torchaudio** removed.
+    ```
+    $ pip3 install torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+    ```
+5. Amend `requirements.txt` and comment out `thop>=0.1.1`, then save.
+    ```
+    $ nano requirements.txt
+    ```
+    Then, install dependencies.
+    ```
+    $ pip install -r requirements.txt
+    ```
+6. Now that required dependencies are installed, we can check if things could be run like normal - invoking from terminal.
+    ```
+    $ python3 detect.py --weights yolov5s.pt --source data/images/zidane.jpg
+    ```
+    This would download the YOLOv5s weights and perform inference using `data/images/zidane.jpg` input source. You should see something like below:
+    ```
+    detect: weights=['yolov5s.pt'], source=data/images/bus.jpg, data=data/coco128.yaml, imgsz=[640, 640], conf_thres=0.25, iou_thres=0.45, max_det=1000, device=, view_img=False, save_txt=False, save_conf=False, save_crop=False, nosave=False, classes=None, agnostic_nms=False, augment=False, visualize=False, update=False, project=runs/detect, name=exp, exist_ok=False, line_thickness=3, hide_labels=False, hide_conf=False, half=False, dnn=False, vid_stride=1
+
+    Fusing layers...
+    YOLOv5s summary: 213 layers, 7225885 parameters, 0 gradients
+    image 1/1 /home/ubuntu/yolo/um-wqd7008-pdc-yolov5/data/images/bus.jpg: 640x480 4 persons, 1 bus, 309.3ms
+    Speed: 2.9ms pre-process, 309.3ms inference, 3.7ms NMS per image at shape (1, 3, 640, 640)
+    Results saved to runs/detect/exp
+    ```
+    which means inference is successful and the result is saved to **runs/detect/exp** folder.
+
+### Submit a HTCondor Job to Perform Inference
