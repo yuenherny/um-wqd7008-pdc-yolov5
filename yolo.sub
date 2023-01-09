@@ -1,0 +1,12 @@
+# YOLO detection on an image
+
+executable   = yolo.sh
+
+output       = yolo.out
+error        = yolo.err
+log          = yolo.log
+
+should_transfer_files = yes
+when_to_transfer_output = ON_EXIT
+
+queue
