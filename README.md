@@ -206,3 +206,161 @@ The following setup procedure can be found [here](https://ubuntu.com/server/docs
     which means inference is successful and the result is saved to **runs/detect/exp** folder.
 
 ### Submit a HTCondor Job to Perform Inference
+1. At SubmHost, create a bash file (see `yolo.sh`).
+    ```
+    $ nano yolo.sh
+    ```
+    Then paste this into the bash file, and save:
+    ```
+    #!/usr/bin/bash
+    # file name: yolo.sh
+
+    # check python version
+    echo "$(python3 --version)"
+
+    # change to directory
+    cd /home/ubuntu/yolo/um-wqd7008-pdc-yolov5
+    echo "Directory changed"
+
+    # activate python env
+    source venv/bin/activate
+    echo "Python env activated"
+
+    # run detect.py on an image
+    echo "Execution start"
+    python3 detect.py --weights yolov5s.pt --source data/images/bus.jpg
+    echo "Execution complete"
+
+    # deactivate python env
+    deactivate
+    echo "Python env deactivated"
+    ```
+    Without the shebang (the first line in bash file - `#!/usr/bin/bash`), you might get the following error:
+    ```
+    ...
+    007 (019.000.000) 2023-01-09 10:23:53 Shadow exception!
+            Error from slot1@ip-172-31-88-90.ec2.internal: Failed to execute '/var/lib/condor/execute/dir_1257/condor_exec.exe': (errno=8: 'Exec format error')
+            0  -  Run Bytes Sent By Job
+            298  -  Run Bytes Received By Job
+    ...
+    012 (019.000.000) 2023-01-09 10:23:53 Job was held.
+            Error from slot1@ip-172-31-88-90.ec2.internal: Failed to execute '/var/lib/condor/execute/dir_1257/condor_exec.exe': (errno=8: 'Exec format error')
+            Code 6 Subcode 8
+    ...
+    ```
+    This shebang-induced error is documented [here](https://git.scc.kit.edu/sdil/faq/-/issues/34) and [here](https://stackoverflow.com/questions/44813117/htcondor-shadow-exception-errno-8-exec-format-error/75058436).
+2. Still at SubmHost, create a HTCondor submit file (see `yolo.sub`).
+    ```
+    $ nano yolo.sub
+    ```
+    Then paste the following into it, and save:
+    ```
+    # YOLO detection on an image
+
+    executable   = yolo.sh
+
+    output       = yolo.out
+    error        = yolo.err
+    log          = yolo.log
+
+    should_transfer_files = yes
+    when_to_transfer_output = ON_EXIT
+
+    queue
+    ```
+3. Still at SubmHost, submit `yolo.sh` as a job using `yolo.sub` submit file.
+    ```
+    $ condor_submit yolo.sub
+    ```
+If there were no errors, you should see your result in the Executor instance's `um-wqd7008-pdc-yolov5/runs/detect/exp` directory. However, you might get the following output in `yolo.err`:
+```
+Traceback (most recent call last):
+File "detect.py", line 261, in <module>
+    main(opt)
+File "detect.py", line 256, in main
+    run(**vars(opt))
+File "/home/ubuntu/yolo/um-wqd7008-pdc-yolov5/venv/lib/python3.8/site-packages/torch/autograd/grad_mode.py", line 27, in decorate_context
+    return func(*args, **kwargs)
+File "detect.py", line 98, in run
+    model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
+File "/home/ubuntu/yolo/um-wqd7008-pdc-yolov5/models/common.py", line 345, in __init__
+    model = attempt_load(weights if isinstance(weights, list) else w, device=device, inplace=True, fuse=fuse)
+File "/home/ubuntu/yolo/um-wqd7008-pdc-yolov5/models/experimental.py", line 79, in attempt_load
+    ckpt = torch.load(attempt_download(w), map_location='cpu')  # load
+File "/home/ubuntu/yolo/um-wqd7008-pdc-yolov5/venv/lib/python3.8/site-packages/torch/serialization.py", line 771, in load
+    with _open_file_like(f, 'rb') as opened_file:
+File "/home/ubuntu/yolo/um-wqd7008-pdc-yolov5/venv/lib/python3.8/site-packages/torch/serialization.py", line 270, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+File "/home/ubuntu/yolo/um-wqd7008-pdc-yolov5/venv/lib/python3.8/site-packages/torch/serialization.py", line 251, in __init__
+    super(_open_file, self).__init__(open(name, mode))
+PermissionError: [Errno 13] Permission denied: 'yolov5s.pt'
+```
+or:
+```
+Traceback (most recent call last):
+  File "detect.py", line 261, in <module>
+    main(opt)
+  File "detect.py", line 256, in main
+    run(**vars(opt))
+  File "/home/ubuntu/yolo/um-wqd7008-pdc-yolov5/venv/lib/python3.8/site-packages/torch/autograd/grad_mode.py", line 27, in decorate_context
+    return func(*args, **kwargs)
+  File "detect.py", line 94, in run
+    (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+  File "/usr/lib/python3.8/pathlib.py", line 1288, in mkdir
+    self._accessor.mkdir(self, mode)
+PermissionError: [Errno 13] Permission denied: 'runs/detect/exp2'
+```
+The `[Errno 13]` error means that the program tried to create new file or folder but it was denied due to write permission issues. We need to assign other users with write access permissions in both project root and the `runs/detect/` directory. At the parent directory of `um-wqd7008-pdc-yolov5`:
+```
+$ chmod 777 um-wqd7008-pdc-yolov5
+$ chmod 777 um-wqd7008-pdc-yolov5/runs
+```
+Change permissions for other files and directories if needed. Read more about `chmod` [here](https://www.pluralsight.com/blog/it-ops/linux-file-permissions).
+
+### Google Drive Setup
+TBD
+
+## Common Issues
+
+### Issue 1: NFS Client (on Executor instance) inactive after instance stopped and started
+This could happen when you stopped and then started the instance after complete setting up NFS Server and Client (you took a break and resumed this project).
+
+**Solution: Start the NFS Client service on Executor.**
+1. At Executor, start the NFS Client:
+    ```
+    $ sudo systemctl start nfs-common.service
+    ```
+2. At Executor, perform mounting:
+    ```
+    $ sudo mount <NFS_SERVER_IP_ADDRESS_OR_MACHINE_NAME>:<DIR_ON_NFS_SERVER> <DIR_ON_NFS_CLIENT>
+    ```
+
+### Issue 2: NFS Client could not be started due to masked
+This could happen when your NFS Client service unit file was symlinked to `/dev/null`.
+
+**Solution: Remove the symlink, unmask and start the service.**
+1. At Executor, navigate to `/lib/systemd/system/` and check if service unit file was symlinked to `/dev/null`.
+    ```
+    $ file /lib/systemd/system/nfs-common.service
+    OR
+    $ file /etc/systemd/system/nfs-common.service
+    ```
+    It should return:
+    ```
+    /lib/systemd/system/nfs-common.service: symbolic link to /dev/null
+    ```
+2. Delete the symlink.
+    ```
+    $ sudo rm /lib/systemd/system/nfs-common.service
+    ```
+3. Reload the systemd daemon:
+    ```
+    $ sudo systemctl daemon-reload
+    ```
+4. Unmask, start and check the service:
+    ```
+    $ sudo systemctl unmask nfs-common.service
+    $ sudo systemctl start nfs-common.service
+    $ $ sudo systemctl status nfs-common.service
+    ```
+As documented [here](https://unix.stackexchange.com/questions/308904/systemd-how-to-unmask-a-service-whose-unit-file-is-empty) and [here](https://www.suse.com/support/kb/doc/?id=000019136).

@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# file name: yolo_test.sh
+# file name: yolo.sh
 
 # check python version
 echo "$(python3 --version)"
