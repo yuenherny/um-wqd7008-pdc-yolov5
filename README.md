@@ -62,7 +62,9 @@ This section outlines the step-by-step procedure to replicate this project.
     $ cd .ssh
     $ ssh -i "private_key.pem" ubuntu@ec2-11-111-11-111.compute-1.amazonaws.com
     ```
-3. Install HTCondor in all three (3) instances.
+
+### HTCondor Setup
+1. Install HTCondor in all three (3) instances.
     - Perform update on all instances via `sudo apt-get update` on all instances.
     - Install HTCondor using this [guide](https://htcondor.readthedocs.io/en/latest/getting-htcondor/admin-quick-start.html#assigning-roles-to-machines) on respective machines as follows (Note that the variables marked `$` should be replaced with user-defined values):
         - YOLO-CentralMgt: 
@@ -78,7 +80,7 @@ This section outlines the step-by-step procedure to replicate this project.
         $ curl -fsSL https://get.htcondor.org | sudo GET_HTCONDOR_PASSWORD="$htcondor_password" /bin/bash -s -- --no-dry-run --execute $central_manager_name
         ```
         - At YOLO-SubmHost, run `$ condor_status` to see execute machines in the pool, `$ condor_submit` to submit jobs and `$ condor_q` to see the jobs run.
-4. At each instance, update `/etc/hosts` with IP address and machine names.
+2. At each instance, update `/etc/hosts` with IP address and machine names.
     ```
     $ sudo nano /etc/hosts
     ```
@@ -93,12 +95,57 @@ This section outlines the step-by-step procedure to replicate this project.
     ::1 ip6-localhost ip6-loopback
     ...
     ```
-5. Edit inbound rules for security group to allow all traffic to pass within the group.
+3. Edit inbound rules for security group to allow all traffic to pass within the pool group.
     - At sidebar, go to **Network & Security** and select **Security Groups**.
     - Choose the security group that applies to the pool.
     - At **Inbound rules**, select **Edit inbound rules**, then **Add rule**.
     - Choose `All traffic` for **Type**, `Custom` for **Source**, and select the security group in the box next to **Source**. Then **Save rules**.
     - Test HTCondor using this `sleep.sh` [example](https://htcondor.readthedocs.io/en/latest/users-manual/quick-start-guide.html#a-first-htcondor-job).
 
+### Network File System (NFS) Setup
+The following setup procedure can be found [here](https://ubuntu.com/server/docs/service-nfs).
+1.  Install NFS Server on SubmHost, and then start it.
+    ```
+    $ sudo apt install nfs-kernel-server
+    $ sudo systemctl start nfs-kernel-server.service
+    ```
+2. Create `yolo` folder at `/home/ubuntu` in SubmHost and Executor instances.
+    ```
+    $ mkdir /yolo
+    ```
+3. Add the `yolo` folder to `/etc/exports` file.
+    ```
+    $ sudo nano /etc/exports
+    ```
+    Add `/home/ubuntu/yolo *(rw,sync,no_subtree_check)` into the file like below:
+    ```
+    # /etc/exports: the access control list for filesystems which may be exported
+    #               to NFS clients.  See exports(5).
+   ...
+    #
+    /home/ubuntu/yolo *(rw,sync,no_subtree_check)
+    ```
+    Then apply the new config via
+    ```
+    $ sudo exportfs -a
+    ```
+4. At Executor instance, install NFS Client and then start it if it is not active.
+    ```
+    $ sudo apt install nfs-common
+    $ sudo systemctl status nfs-common.service
+    $ sudo systemctl start nfs-common.service
+    ```
+5. Still at Executor, mount the created `/home/ubuntu/yolo` directory to the exported directory in NFS Server.
+    ```
+    $ sudo mount SubmHost:/home/ubuntu/yolo /home/ubuntu/yolo
+    ```
+    Test by creating a file at SubmHost and echo its content in the Executor side.
+    ```
+    # At SubmHost
+    $ cd /home/ubuntu/yolo
+    $ echo "Hello" > testfile.txt
 
-
+    # At Executor
+    $ cd /home/ubuntu/yolo
+    $ echo testfile.txt
+    ```
