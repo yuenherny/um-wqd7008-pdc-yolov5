@@ -318,7 +318,64 @@ $ chmod 777 um-wqd7008-pdc-yolov5/runs
 Change permissions for other files and directories if needed. Read more about `chmod` [here](https://www.pluralsight.com/blog/it-ops/linux-file-permissions).
 
 ### Google Drive Setup
-TBD
+To support uploading to Google Drive, we will be using [gdrive](https://github.com/glotlabs/gdrive).
+
+Before setting up, please create Google OAuth Client credentials by following this [guide](https://github.com/glotlabs/gdrive/blob/main/docs/create_google_api_credentials.md).
+
+Due to a limitation by gdrive which requires a web browser, you are required to perform this setup on a GUI-supported local machine. After the setup, we will then export the account and import it on any remote server.
+
+**Local Machine**
+
+1.  Download the [latest release ](https://github.com/glotlabs/gdrive/releases)from Github. `v3.1.0` as of Jan 10, 2023
+2.  Unzip the Archive
+
+3.  Open Terminal where gdrive is located, add Google Account to gdrive
+    ```
+    $ ./gdrive account add
+    ```
+    - This will prompt you for your google Client ID and Client Secret
+    - Next you will be presented with an url
+    - Follow the url and give approval for gdrive to access your Drive
+    - You will be redirected to `http://localhost:8085` (gdrive starts a temporary web server) which completes the setup
+    - Gdrive is now ready to use!
+
+4.  Test upload a file
+    ```
+    $ ./gdrive files upload <FILE_PATH>
+    ```
+5.  Export gdrive Account (i.e. s2132376@siswa.um.edu.my)
+    ```
+    $ ./gdrive account export <ACCOUNT_NAME>
+    ```
+6. Copy the exported archive to the remote server(s) using the command below:
+    ```
+    $ scp <Options> <Local File> <Server Username>@<Host>:<Path on Server>
+    ```
+    Example:
+    ```
+    $ scp -i "nicholasleezt-7008.pem" ~/Downloads/gdrive_export-s2132376_siswa_um_edu_my.tar ubuntu@ec2-18-234-241-246.compute-1.amazonaws.com:/home/ubuntu
+    ```
+**Remote Server(s)**
+1.  Download the latest release from Github. `v3.1.0` as of Jan 10, 2023
+    ```
+    $ wget https://github.com/glotlabs/gdrive/releases/download/3.1.0/gdrive_linux-x64.tar.gz
+    ```
+2.  Unzip the Archive
+    ```
+    $ tar -xvf gdrive_linux-x64.tar.gz
+    ```
+3. Put gdrive binary at your PATH (i.e. `/usr/local/bin`)
+    ```
+    $ sudo mv /home/ubuntu/gdrive /usr/local/bin
+    ```
+4. Import gdrive Account
+    ```
+    $ gdrive account import <ARCHIVE_PATH>
+    ```
+5.  Test upload a file
+    ```
+    $ gdrive files upload <FILE_PATH>
+    ```
 
 ## Common Issues
 
