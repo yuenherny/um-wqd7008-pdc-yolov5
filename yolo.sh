@@ -14,7 +14,8 @@ echo "Python env activated"
 
 # run detect.py on an image
 echo "Execution start"
-python3 detect.py --weights yolov5s.pt --source data/images/bus.jpg
+echo $1
+python3 detect.py --weights yolov5s.pt --source $1
 echo "Execution complete"
 
 # deactivate python env

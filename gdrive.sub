@@ -1,0 +1,18 @@
+# HT Condor submit file for Gdrive upload
+# Upload all files to and from specified folder
+# Clean up after upload completed
+
+executable   = gdrive.sh
+
+output       = gdrive_$(Process).out
+error        = gdrive_$(Process).err
+log          = gdrive_$(Process).log
+
+# request_cpus   = 1
+# request_memory = 1024
+# request_disk   = 10240
+
+should_transfer_files = yes
+when_to_transfer_output = ON_EXIT
+
+queue

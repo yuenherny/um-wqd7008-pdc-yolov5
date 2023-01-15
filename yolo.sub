@@ -1,12 +1,18 @@
-# YOLO detection on an image
+# HT Condor submit file for YOLO inferencing
+# YOLO inferencing images from two dir
 
 executable   = yolo.sh
+arguments    = $(image_dir)
 
-output       = yolo.out
-error        = yolo.err
-log          = yolo.log
+output       = yolo_$(Process).out
+error        = yolo_$(Process).err
+log          = yolo_$(Process).log
+
+# request_cpus   = 1
+# request_memory = 1024
+# request_disk   = 10240
 
 should_transfer_files = yes
 when_to_transfer_output = ON_EXIT
 
-queue
+queue image_dir from dir.txt
