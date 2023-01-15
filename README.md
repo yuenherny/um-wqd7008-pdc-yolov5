@@ -5,6 +5,12 @@ This repo is forked and modified from [Ultralytics's YOLOv5 Pytorch implementati
 ## Table of Content
 1. [Project structure](#project-structure)
 2. [How to use](#how-to-use)
+    - [AWS Setup](#amazon-web-services-aws-setup)
+    - [HTCondor Setup](#htcondor-setup)
+    - [NFS Setup](#network-file-system-nfs-setup)
+    - [YOLO Setup](#you-only-look-once-yolo-model-inference-setup)
+    - [Gdrive Setup](#google-drive-setup)
+3. [Common Issues](#common-issues)
 
 ## Project structure
 The project is structured as follows:
@@ -149,6 +155,7 @@ The following setup procedure can be found [here](https://ubuntu.com/server/docs
     $ cd /home/ubuntu/yolo
     $ echo testfile.txt
     ```
+See [Common Issues](#common-issues) if you run into any issues during NFS setup.
 
 ### You Only Look Once (YOLO) Model Inference Setup
 1. Clone this [repository](https://github.com/yuenherny/um-wqd7008-pdc-yolov5) to Executor because there are several Ubuntu-based packages needed to run YOLO model. Note that Git and Python 3.8 come pre-installed with Ubuntu 20.04 AMI.
@@ -320,22 +327,21 @@ Change permissions for other files and directories if needed. Read more about `c
 ### Google Drive Setup
 To support uploading to Google Drive, we will be using [gdrive](https://github.com/glotlabs/gdrive).
 
-Before setting up, please create Google OAuth Client credentials by following this [guide](https://github.com/glotlabs/gdrive/blob/main/docs/create_google_api_credentials.md).
+Before proceeding, please create Google OAuth Client credentials by following this [guide](https://github.com/glotlabs/gdrive/blob/main/docs/create_google_api_credentials.md).
 
-Due to a limitation by gdrive which requires a web browser, you are required to perform this setup on a GUI-supported local machine. After the setup, we will then export the account and import it on any remote server.
+Due to a limitation of this package which requires a web browser, you are required to perform this setup on a GUI-supported local machine. After the setup, we will then export the account and import it on any remote server.
 
-**Local Machine**
+#### Part 1: Setup on Local Machine
 
-1.  Download the [latest release ](https://github.com/glotlabs/gdrive/releases)from Github. `v3.1.0` as of Jan 10, 2023
+1.  Download the [latest release ](https://github.com/glotlabs/gdrive/releases)from Github. `v3.1.0` as of Jan 10, 2023.
 2.  Unzip the Archive
-
 3.  Open Terminal where gdrive is located, add Google Account to gdrive
     ```
     $ ./gdrive account add
     ```
     - This will prompt you for your google Client ID and Client Secret
     - Next you will be presented with an url
-    - Follow the url and give approval for gdrive to access your Drive
+    - Open the url in your browser and give approval for gdrive to access your Google Drive
     - You will be redirected to `http://localhost:8085` (gdrive starts a temporary web server) which completes the setup
     - Gdrive is now ready to use!
 
@@ -343,39 +349,74 @@ Due to a limitation by gdrive which requires a web browser, you are required to 
     ```
     $ ./gdrive files upload <FILE_PATH>
     ```
-5.  Export gdrive Account (i.e. s2132376@siswa.um.edu.my)
+5.  Export your gdrive Account (i.e. student_id@siswa.um.edu.my)
     ```
     $ ./gdrive account export <ACCOUNT_NAME>
     ```
 6. Copy the exported archive to the remote server(s) using the command below:
     ```
-    $ scp <Options> <Local File> <Server Username>@<Host>:<Path on Server>
+    $ scp <Options> <PATH/ON/LOCAL> <SERVER_NAME>@<HOST>:<PATH/ON/SERVER>
     ```
     Example:
     ```
     $ scp -i "nicholasleezt-7008.pem" ~/Downloads/gdrive_export-s2132376_siswa_um_edu_my.tar ubuntu@ec2-18-234-241-246.compute-1.amazonaws.com:/home/ubuntu
     ```
-**Remote Server(s)**
-1.  Download the latest release from Github. `v3.1.0` as of Jan 10, 2023
+
+#### Part 2: On Remote Server(s)
+1.  Download the latest release from Github. `v3.1.0` as of Jan 10, 2023.
     ```
     $ wget https://github.com/glotlabs/gdrive/releases/download/3.1.0/gdrive_linux-x64.tar.gz
     ```
-2.  Unzip the Archive
+2.  Unzip the archive.
     ```
     $ tar -xvf gdrive_linux-x64.tar.gz
     ```
-3. Put gdrive binary at your PATH (i.e. `/usr/local/bin`)
+3. Put the gdrive binary at your PATH (i.e. `/usr/local/bin`)
     ```
     $ sudo mv /home/ubuntu/gdrive /usr/local/bin
     ```
-4. Import gdrive Account
+4. Import the gdrive account.
     ```
-    $ gdrive account import <ARCHIVE_PATH>
+    $ gdrive account import <EXPORTED_ACCOUNT>
     ```
-5.  Test upload a file
+5.  Test upload a file.
     ```
-    $ gdrive files upload <FILE_PATH>
+    $ gdrive files upload <FILE/TO/PATH>
     ```
+6. Alternatively, to upload to a specific folder in your gdrive, run:
+   ```
+   $ gdrive files list
+   ```
+   to get the folder ID. You will see something like:
+   ```
+    Id                                                                          Name                                      Type       Size       Created
+    1N6Hs1Tx1f0ubfKphI4cfGyZCGsjJCEz4                                           Folder1                                    folder                2022-12-31 09:24:37
+    1i7uFBCbqgw176TftRsws6z0BTr64zB1m                                           Folder2                                folder                2022-11-07 06:43:56
+    1GNCqI5lG-6wd_XQnYz0Z1z3ReUTGUQUY                                           Folder3                             folder                2022-07-20 12:48:50
+   ```
+   then do:
+   ```
+   $ gdrive files upload <PATH/TO/FILE> --parent <FOLDER_ID>
+   ```
+   Note that as of 15 Jan 2023, gdrive package is only able to upload files. Folders or multiple files are not supported.
+
+## Putting Everything Together: HTCondor Workflow Execution using DAGMan
+The DAGMan workflow [yolo-gdrive.dag](yolo-gdrive.dag) aims to:
+1. Perform YOLO inference on images on parallel - see [yolo.sh](yolo.sh) and [yolo.sub](yolo.sub)
+2. Upload the results to a Google Drive folder - see [gdrive.sh](gdrive.sh) and [gdrive.sub](gdrive.sub)
+
+Unfortunately, the shell script for gdrive execution was unable to complete due to permission issues:
+```
+Error: Failed to create directory '/nonexistent/.config/gdrive3': Permission denied (os error 13)
+Error: No account has been selected
+Use `gdrive account list` to show all accounts.
+Use `gdrive account switch` to select an account.
+...
+Error: No account has been selected
+Use `gdrive account list` to show all accounts.
+Use `gdrive account switch` to select an account.
+sudo: a terminal is required to read the password; either use the -S option to read from standard input or configure an askpass helper
+```
 
 ## Common Issues
 
