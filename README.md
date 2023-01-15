@@ -10,7 +10,8 @@ This repo is forked and modified from [Ultralytics's YOLOv5 Pytorch implementati
     - [NFS Setup](#network-file-system-nfs-setup)
     - [YOLO Setup](#you-only-look-once-yolo-model-inference-setup)
     - [Gdrive Setup](#google-drive-setup)
-3. [Common Issues](#common-issues)
+3. [Putting everything together: DAGMan Workflow](#putting-everything-together-htcondor-workflow-execution-using-dagman)
+4. [Common Issues](#common-issues)
 
 ## Project structure
 The project is structured as follows:
